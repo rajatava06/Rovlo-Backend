@@ -2,6 +2,8 @@
 
 Production-ready Node.js & Express backend for **Rovlo — Travel Companion App**.
 
+> **Update:** the Rovlo app now uses **Supabase** (database, auth, storage, realtime, edge functions) directly. The Express server in `src/` is no longer used by the app. Start with [SUPABASE_SETUP.md](SUPABASE_SETUP.md); the schema is in `supabase/schema.sql`.
+
 ---
 
 ## 🌟 Features

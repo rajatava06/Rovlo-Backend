@@ -5,3 +5,13 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .DS_Store
+
+# Supabase CLI local state + local-only files
+supabase/.temp/
+supabase/seed_admins.sql
+*.local.sql
+# Firebase / Google service-account keys (never commit)
+*service-account*.json
+*serviceAccount*.json
+.env.*
+!.env.example
