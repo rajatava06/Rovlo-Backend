@@ -1,5 +1,5 @@
 -- =============================================================================
---  ROVLO — 3 DEMO PROFILES (for testing the Discover feed and the map)
+--  ROVLO — 4 DEMO PROFILES (for testing the Discover feed, the map and chat)
 --
 --  HOW TO RUN
 --    Supabase Dashboard → SQL Editor → New query → paste this whole file → Run.
@@ -93,6 +93,53 @@ update public.profiles set
   profile_complete = true, is_paused = false, is_blocked = false, ghost_mode = false,
   lat = 22.6000, lng = 88.4000, location_updated_at = now()
 where id = 'd0000000-0000-4000-8000-000000000003';
+
+-- 2b. MAP + CHAT TEST USER — "Kabir Test".
+--     * Shows on the map within ~1 km of the most recently active real user
+--       (so you see him right next to you); falls back to central Kolkata.
+--     * Location is "live" (location_updated_at = now()).
+--     * Accepts every chat request instantly (needs the latest schema.sql, which
+--       adds is_demo_user + the auto-accept in send_chat_request).
+--     * Has a chat key, so you can send him encrypted messages.
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values
+  ('00000000-0000-0000-0000-000000000000', 'd0000000-0000-4000-8000-000000000004',
+   'authenticated', 'authenticated', 'kabir@demo.rovlo.app', '', now(),
+   '', '', '', '',
+   '{"provider":"email","providers":["email"]}', '{"full_name":"Kabir Test"}', now(), now())
+on conflict (id) do nothing;
+
+update public.profiles set
+  name = 'Kabir Test',
+  gender = 'Male',
+  dob = '1997-03-08T00:00:00.000',
+  bio = 'Demo traveller for testing the map and chat. Message me — I accept every request instantly!',
+  photo_url = 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=900&q=80',
+  profile_photos = array[
+    'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=900&q=80'],
+  travel_interests = array['Backpacking', 'Food & wine', 'Photography'],
+  home_base = 'Kolkata, India',
+  city = 'Kolkata',
+  trip_destination = 'Manali, India',
+  trip_dates = '1st Week, Dec 2026',
+  is_verified = true,
+  profile_complete = true, is_paused = false, is_blocked = false, ghost_mode = false,
+  lat = coalesce((select r.lat + 0.006 from public.profiles r
+                  where r.email not like '%@demo.rovlo.app' and r.lat is not null
+                  order by r.location_updated_at desc nulls last limit 1), 22.5726),
+  lng = coalesce((select r.lng + 0.006 from public.profiles r
+                  where r.email not like '%@demo.rovlo.app' and r.lat is not null
+                  order by r.location_updated_at desc nulls last limit 1), 88.3639),
+  location_updated_at = now()
+where id = 'd0000000-0000-4000-8000-000000000004';
+
+-- A placeholder public chat key (32 bytes, base64) so messages to him work.
+insert into public.user_keys (user_id, public_key)
+values ('d0000000-0000-4000-8000-000000000004', 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=')
+on conflict (user_id) do nothing;
 
 -- 3. OPTIONAL — to test matches + chat, make the demo people "like" YOU.
 --    Put your own Google email below, remove the leading "--" on each line, run.

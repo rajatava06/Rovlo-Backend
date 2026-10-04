@@ -1215,6 +1215,17 @@ as $$
       or public.are_matched(a, b);
 $$;
 
+-- Demo/test accounts (email ...@demo.rovlo.app, see seed_demo_profiles.sql)
+-- accept every chat request instantly so chat can be tested without a 2nd phone.
+create or replace function public.is_demo_user(p_id uuid)
+returns boolean
+language sql stable security definer
+set search_path = public
+as $$
+  select exists (select 1 from public.profiles
+                 where id = p_id and email like '%@demo.rovlo.app');
+$$;
+
 -- Ask somebody to chat. Returns 'pending' or 'accepted'.
 --   * they already asked me  -> accepted straight away
 --   * declined by them       -> can ask again after 24 hours
@@ -1265,6 +1276,11 @@ begin
        set from_user = me, to_user = p_to, status = 'pending',
            created_at = now(), responded_at = null
      where id = r.id;
+    if public.is_demo_user(p_to) then
+      update public.chat_requests
+         set status = 'accepted', responded_at = now() where id = r.id;
+      return 'accepted';
+    end if;
     return 'pending';
   end if;
 
@@ -1273,6 +1289,12 @@ begin
   if v_open >= 30 then raise exception 'too_many_pending'; end if;
 
   insert into public.chat_requests (from_user, to_user) values (me, p_to);
+  if public.is_demo_user(p_to) then
+    update public.chat_requests
+       set status = 'accepted', responded_at = now()
+     where from_user = me and to_user = p_to;
+    return 'accepted';
+  end if;
   return 'pending';
 end;
 $$;
