@@ -141,6 +141,33 @@ insert into public.user_keys (user_id, public_key)
 values ('d0000000-0000-4000-8000-000000000004', 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=')
 on conflict (user_id) do nothing;
 
+-- 2c. TRIPS — what makes "Going to…" and the Discover cards work.
+--     The app reads destinations from the trips table (not profiles), so each
+--     demo person gets a real upcoming trip with coordinates. Dates are
+--     relative to today, so re-running this later keeps them in the future.
+--     Search e.g. "Goa" / "Bali" / "Kyoto" / "Manali" for the week shown on the
+--     cards (or the weeks around it) and they appear, best date match first.
+delete from public.trips where user_id in (
+  select id from public.profiles where email like '%@demo.rovlo.app');
+
+insert into public.trips
+  (user_id, destination, lat, lng, travel_week, travel_month, travel_year, start_date, end_date)
+select v.uid, v.dest, v.lat, v.lng,
+       (array['1st Week','2nd Week','3rd Week','4th Week'])[least(((extract(day from d.dt)::int - 1) / 7) + 1, 4)],
+       to_char(d.dt, 'Mon'), to_char(d.dt, 'YYYY'), w.start_date, w.end_date
+from (values
+  ('d0000000-0000-4000-8000-000000000001'::uuid, 'Goa, India',        15.2993, 74.1240, 14),
+  ('d0000000-0000-4000-8000-000000000002'::uuid, 'Bali, Indonesia',   -8.4095, 115.1889, 35),
+  ('d0000000-0000-4000-8000-000000000003'::uuid, 'Kyoto, Japan',      35.0116, 135.7681, 56),
+  ('d0000000-0000-4000-8000-000000000004'::uuid, 'Manali, India',     32.2432, 77.1892, 7)
+) as v(uid, dest, lat, lng, days_ahead)
+cross join lateral (select (current_date + v.days_ahead) as dt) d
+cross join lateral public.trip_window(
+  (array['1st Week','2nd Week','3rd Week','4th Week'])[least(((extract(day from d.dt)::int - 1) / 7) + 1, 4)],
+  to_char(d.dt, 'Mon'), to_char(d.dt, 'YYYY')) w;
+
+select public.sync_profile_trip(id) from public.profiles where email like '%@demo.rovlo.app';
+
 -- 3. OPTIONAL — to test matches + chat, make the demo people "like" YOU.
 --    Put your own Google email below, remove the leading "--" on each line, run.
 --    Then like them back in the Discover feed and it becomes a match.
